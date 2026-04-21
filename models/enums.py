@@ -194,3 +194,47 @@ class NormalizationWarning(str, Enum):
     PARSE_ERROR = "parse_error"
     CONFIDENCE_LOW = "confidence_low"
     FRESHNESS_STALE = "freshness_stale"
+
+
+# ---------------------------------------------------------------------------
+# Conflict Resolution Engine enums
+# ---------------------------------------------------------------------------
+
+
+class SourceTrustTier(str, Enum):
+    """Ordered trust tiers for inventory and evidence sources.
+
+    Higher tiers produce higher base trust weights.  The numeric rank is
+    intentionally exposed so scoring code can do arithmetic without
+    hard-coding magic constants.
+    """
+
+    AUTHORITATIVE = "authoritative"   # Single source of truth (e.g. CMDB, NetBox)
+    FIRST_PARTY = "first_party"       # Direct device telemetry via SSH/REST/SNMP
+    SECOND_PARTY = "second_party"     # Indirect/corroborating sources (BGP, OSPF)
+    THIRD_PARTY = "third_party"       # Inferred / heuristic sources
+    UNTRUSTED = "untrusted"           # Unknown provenance — treat with high skepticism
+
+
+class ConflictState(str, Enum):
+    """Life-cycle state of a detected conflict."""
+
+    DETECTED = "detected"             # Conflict found, not yet evaluated
+    EVALUATING = "evaluating"         # Resolution logic is running
+    RESOLVED = "resolved"             # A winner was selected and applied
+    PRESERVED = "preserved"           # Conflict intentionally kept as multi-valued truth
+    STALE = "stale"                   # All evidence has decayed past usability threshold
+    SUPPRESSED = "suppressed"         # Operator-acknowledged; no action taken
+
+
+class ResolutionStrategy(str, Enum):
+    """Algorithm used to resolve (or preserve) a conflict."""
+
+    HIGHEST_TRUST = "highest_trust"               # Pick the source with the highest trust rank
+    MOST_RECENT = "most_recent"                   # Pick the freshest evidence timestamp
+    HIGHEST_CONFIDENCE = "highest_confidence"     # Pick the candidate with the best composite score
+    MAJORITY_VOTE = "majority_vote"               # Pick the value agreed upon by the most sources
+    AUTHORITATIVE_OVERRIDE = "authoritative_override"  # AUTHORITATIVE tier always wins unconditionally
+    MANUAL = "manual"                             # Operator-supplied resolution
+    PRESERVE_ALL = "preserve_all"                 # Keep all candidates as a multi-valued set
+    DECAY_WINNER = "decay_winner"                 # After decay, the last surviving candidate wins

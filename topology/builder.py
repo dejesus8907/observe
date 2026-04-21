@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Optional
 
 from netobserv.models.canonical import (
     CanonicalDevice,
@@ -51,14 +51,24 @@ class TopologyBuilder:
       3. Interface description patterns
       4. BGP/OSPF adjacency inference
       5. ARP/MAC correlation
+
+    Conflict resolution is delegated to ``ConflictResolutionEngine`` when
+    ``use_conflict_engine=True`` (default).  The engine applies trust ranking,
+    freshness weighting, evidence decay, and composite confidence scoring to
+    each group of competing edges before a winner is selected.
     """
 
     def __init__(
         self,
         min_confidence_threshold: float = 0.3,
+        use_conflict_engine: bool = True,
+        conflict_engine: Optional[Any] = None,  # ConflictResolutionEngine
     ) -> None:
         self.min_confidence_threshold = min_confidence_threshold
         self._conflict_detector = ConflictDetector()
+        self._use_conflict_engine = use_conflict_engine
+        # Lazy import to avoid circular dependency; injected in tests
+        self._conflict_engine = conflict_engine
 
     def build(
         self,
@@ -116,7 +126,7 @@ class TopologyBuilder:
         inference_counts["bgp"] = len(bgp_edges)
 
         # Reconcile duplicate edges (same pair, multiple evidence sources)
-        edges = self._reconcile_edges(edges)
+        edges = self._reconcile_edges(edges, snapshot_id=snapshot_id)
 
         # Filter by confidence threshold
         edges = [
@@ -357,13 +367,21 @@ class TopologyBuilder:
     # ------------------------------------------------------------------
 
     def _reconcile_edges(
-        self, edges: list[CanonicalTopologyEdge]
+        self,
+        edges: list[CanonicalTopologyEdge],
+        snapshot_id: Optional[str] = None,
     ) -> list[CanonicalTopologyEdge]:
+        """Merge duplicate edges (same device pair) from multiple evidence sources.
+
+        When ``use_conflict_engine=True`` the ``ConflictResolutionEngine`` is
+        used for groups with more than one edge, applying trust ranking,
+        freshness weighting, and composite confidence scoring before picking a
+        winner.  This replaces the previous simple "take highest score + boost"
+        heuristic.
+
+        Falls back to the original merge heuristic when the engine is
+        disabled (``use_conflict_engine=False``) for backwards compatibility.
         """
-        Merge duplicate edges (same device pair) from multiple evidence sources.
-        The merged edge gets the highest confidence and all evidence sources.
-        """
-        # Group by canonical pair key (sorted node IDs + interfaces)
         from collections import defaultdict
 
         def pair_key(e: CanonicalTopologyEdge) -> tuple[str, ...]:
@@ -374,13 +392,24 @@ class TopologyBuilder:
         for edge in edges:
             groups[pair_key(edge)].append(edge)
 
+        # Delegate to engine when available
+        if self._use_conflict_engine:
+            engine = self._get_conflict_engine()
+            str_groups: dict[str, list[CanonicalTopologyEdge]] = {
+                ":".join(k): v for k, v in groups.items()
+            }
+            resolved = engine.resolve_topology_edges(
+                str_groups, snapshot_id=snapshot_id
+            )
+            return list(resolved.values())
+
+        # Legacy heuristic path (engine disabled)
         result: list[CanonicalTopologyEdge] = []
         for group_edges in groups.values():
             if len(group_edges) == 1:
                 result.append(group_edges[0])
                 continue
 
-            # Merge: take the highest confidence edge, accumulate evidence
             best = max(group_edges, key=lambda e: e.confidence_score)
             all_evidence: list[str] = []
             for e in group_edges:
@@ -390,7 +419,6 @@ class TopologyBuilder:
                 update={
                     "evidence_source": list(dict.fromkeys(all_evidence)),
                     "evidence_count": len(group_edges),
-                    # Boost confidence slightly when multiple sources agree
                     "confidence_score": min(
                         best.confidence_score + 0.05 * (len(group_edges) - 1), 1.0
                     ),
@@ -399,3 +427,10 @@ class TopologyBuilder:
             result.append(merged)
 
         return result
+
+    def _get_conflict_engine(self) -> Any:
+        """Lazily create the ConflictResolutionEngine on first use."""
+        if self._conflict_engine is None:
+            from netobserv.conflict_resolution.engine import ConflictResolutionEngine
+            self._conflict_engine = ConflictResolutionEngine()
+        return self._conflict_engine
