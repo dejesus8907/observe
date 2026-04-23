@@ -187,8 +187,9 @@ def runtime_start(
 ) -> None:
     """Run the runtime service loop.
 
-    Important honesty note: domain-specific stage executors are not fully wired
-    yet, so this command is primarily for scheduler/recovery/status plumbing.
+    Important honesty note: stage executors now enforce required inputs and no
+    longer return blanket fake success, but end-to-end connector side effects
+    still depend on how the workflow payload is populated.
     """
     components = _build_runtime_components()
     from netobserv.runtime.service import RuntimeServiceConfig
