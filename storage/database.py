@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 
 from netobserv.config.settings import Settings, get_settings
+from netobserv.observability.logging import get_logger
 
 
 class Base(DeclarativeBase):
@@ -34,6 +35,7 @@ async_engine: AsyncEngine | None = None
 AsyncSessionLocal: async_sessionmaker[AsyncSession] | None = None
 runtime_sync_engine = None
 RuntimeSessionLocal: sessionmaker[Session] | None = None
+logger = get_logger("storage.database")
 
 
 def _build_engine(settings: Settings | None = None) -> AsyncEngine:
@@ -117,7 +119,8 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
         try:
             yield session
             await session.commit()
-        except Exception:
+        except Exception as exc:
+            logger.error("Rolling back DB session after exception", error=str(exc), exc_info=True)
             await session.rollback()
             raise
 
@@ -130,7 +133,8 @@ async def session_scope() -> AsyncGenerator[AsyncSession, None]:
         try:
             yield session
             await session.commit()
-        except Exception:
+        except Exception as exc:
+            logger.error("Rolling back session scope after exception", error=str(exc), exc_info=True)
             await session.rollback()
             raise
 
@@ -148,6 +152,7 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     await init_runtime_db()
+    await init_streaming_db()
 
 
 async def close_db() -> None:
@@ -175,3 +180,12 @@ async def init_runtime_db() -> None:
     assert runtime_sync_engine is not None
     from netobserv.runtime.db_models import RuntimeBase
     RuntimeBase.metadata.create_all(bind=runtime_sync_engine)
+
+
+async def init_streaming_db() -> None:
+    """Create streaming SQL tables using the sync runtime engine."""
+    if runtime_sync_engine is None:
+        configure_storage()
+    assert runtime_sync_engine is not None
+    from netobserv.streaming.db_models import StreamingBase
+    StreamingBase.metadata.create_all(bind=runtime_sync_engine)

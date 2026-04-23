@@ -78,6 +78,7 @@ class SNMPConnector(BaseConnector):
         ctx = ContextData()
 
         facts: dict[str, Any] = {}
+        errors: list[str] = []
         for key, oid in [
             ("sysDescr", _OIDS["sysDescr"]),
             ("sysName", _OIDS["sysName"]),
@@ -94,7 +95,12 @@ class SNMPConnector(BaseConnector):
                 if not error_ind and not error_status:
                     for var_bind in var_binds:
                         facts[key] = str(var_bind[1])
+                elif error_ind or error_status:
+                    msg = f"SNMP GET protocol error on {oid}: {error_ind or error_status}"
+                    errors.append(msg)
+                    logger.warning(msg, oid=oid, target=host)
             except Exception as exc:
+                errors.append(f"SNMP GET failed for {oid}: {exc}")
                 logger.warning("SNMP GET failed", oid=oid, target=host, error=str(exc))
 
         # Walk interface table
@@ -137,7 +143,12 @@ class SNMPConnector(BaseConnector):
                         if_data[if_index]["speed"] = value
             raw_interfaces = list(if_data.values())
         except Exception as exc:
+            errors.append(f"SNMP walk failed: {exc}")
             logger.warning("SNMP walk failed", target=host, error=str(exc))
+
+        if not facts and not raw_interfaces:
+            reason = errors[0] if errors else "SNMP query returned no useful facts"
+            return self._failed(target, context, reason)
 
         return RawCollectionResult(
             target=target,
@@ -145,7 +156,7 @@ class SNMPConnector(BaseConnector):
             snapshot_id=context.snapshot_id,
             connector_type=self.connector_type,
             success=True,
-            data={"snmp_facts": facts},
+            data={"snmp_facts": facts, "warnings": errors},
             raw_device_facts=facts,
             raw_interfaces=raw_interfaces,
         )

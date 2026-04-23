@@ -105,6 +105,28 @@ class Settings(BaseSettings):
     runtime_worker_interval_seconds: float = 1.0
     runtime_scheduler_interval_seconds: float = 15.0
     runtime_idle_sleep_seconds: float = 1.0
+
+    # ------------------------------------------------------------------
+    # Streaming change detection subsystem
+    # ------------------------------------------------------------------
+    streaming_enabled: bool = True
+    streaming_gnmi_enabled: bool = True
+    streaming_ssh_poll_enabled: bool = True
+    streaming_snmp_trap_enabled: bool = True
+    streaming_syslog_enabled: bool = True
+    streaming_event_bus_queue_size: int = 10000
+    streaming_event_bus_dedup_window_seconds: float = 5.0
+    streaming_subscriber_timeout_seconds: float = 2.0
+    streaming_topology_delta_queue_size: int = 5000
+    streaming_snmp_trap_host: str = "0.0.0.0"
+    streaming_snmp_trap_port: int = 1162
+    streaming_snmp_trap_community: str = "public"
+    streaming_syslog_host: str = "0.0.0.0"
+    streaming_syslog_udp_port: int = 1514
+    streaming_syslog_tcp_port: int | None = 1514
+    streaming_metrics_update_interval_seconds: float = 15.0
+    streaming_service_heartbeat_interval_seconds: float = 30.0
+    streaming_service_emit_health_log: bool = False
     tracing_service_name: str = "netobserv"
     tracing_endpoint: str | None = None
 
@@ -232,6 +254,14 @@ class Settings(BaseSettings):
         value = value.strip()
         if not value:
             raise ValueError("runtime queue/worker values may not be blank")
+        return value
+
+    @field_validator("streaming_snmp_trap_host", "streaming_syslog_host")
+    @classmethod
+    def _validate_streaming_hosts(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("streaming host values may not be blank")
         return value
 
     @model_validator(mode="after")
