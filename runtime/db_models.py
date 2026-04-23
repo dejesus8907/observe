@@ -279,4 +279,4 @@ def runtime_model_names() -> list[str]:
         "RuntimeJobModel",
         "RuntimeStageAttemptModel",
         "RuntimeRecoveryEventModel",
-    ]\n
+    ]

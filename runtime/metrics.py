@@ -417,4 +417,4 @@ def time_repository_operation(*, operation: str) -> Iterator[None]:
             operation=operation,
             outcome="succeeded",
             duration_seconds=perf_counter() - start,
-        )\n
+        )

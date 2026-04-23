@@ -9,13 +9,17 @@ from typing import Iterator
 from sqlalchemy.orm import Session
 
 from netobserv.config.settings import Settings
+from netobserv.observability.logging import get_logger
 from netobserv.runtime.dispatcher import RuntimeDispatcher
 from netobserv.runtime.recovery import RuntimeRecovery
 from netobserv.runtime.scheduler import RuntimeScheduler
 from netobserv.runtime.service import RuntimeService
 from netobserv.runtime.sql_repository import SQLRuntimeRepository
+from netobserv.runtime.stage_executors import build_default_stage_executors
 from netobserv.runtime.worker import RuntimeWorker, WorkerConfig
 from netobserv.storage.database import RuntimeSessionLocal
+
+logger = get_logger("runtime.bootstrap")
 
 
 @contextmanager
@@ -26,7 +30,8 @@ def runtime_session_scope() -> Iterator[Session]:
     try:
         yield session
         session.commit()
-    except Exception:
+    except Exception as exc:
+        logger.error("Runtime session failed; rolling back transaction", error=str(exc), exc_info=True)
         session.rollback()
         raise
     finally:
@@ -61,7 +66,7 @@ def build_runtime_components(settings: Settings) -> RuntimeComponents:
             heartbeat_interval_seconds=settings.runtime_heartbeat_interval_seconds,
             max_jobs_per_run=settings.runtime_max_jobs_per_run,
         ),
-        stage_executors={},
+        stage_executors=build_default_stage_executors(),
     )
     service = RuntimeService(
         worker,

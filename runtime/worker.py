@@ -306,15 +306,15 @@ class RuntimeWorker:
                     "metadata": self._sanitize_stage_outputs(outputs),
                 }
             )
-            return self._repository.replace_stage_record(
+            persisted = self._repository.replace_stage_record(
                 job_id=job.job_id,
                 stage_name=stage.name,
                 attempt_number=current_attempt,
                 record=finished,
             )
             duration = None
-            if finished.started_at and finished.completed_at:
-                duration = (finished.completed_at - finished.started_at).total_seconds()
+            if persisted.started_at and persisted.completed_at:
+                duration = (persisted.completed_at - persisted.started_at).total_seconds()
             record_stage_attempt(queue=job.queue_name, job_type=job.job_type, stage_name=stage.name, outcome='succeeded', duration_seconds=duration)
             return persisted
 
@@ -364,7 +364,7 @@ class RuntimeWorker:
 
         if updated.retry_policy.allows_retry_for(category, updated.attempt_number):
             available_at = updated.next_available_retry_time(now=now)
-            return self._repository.schedule_retry(
+            persisted = self._repository.schedule_retry(
                 job_id=updated.job_id,
                 available_at=available_at,
                 error_message=exc.message,

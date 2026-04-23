@@ -677,4 +677,4 @@ class SQLRuntimeRepository(RuntimeRepository):
             error_message=model.error_message,
             artifact_refs=list(model.artifact_refs_json or []),
             metadata=dict(model.metadata_json or {}),
-        )\n
+        )

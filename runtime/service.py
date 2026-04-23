@@ -320,4 +320,4 @@ class RuntimeService:
         result.recovery_failed_jobs += sweep.recovery_failed_jobs
         result.recovery_cancelled_jobs += sweep.recovery_cancelled_jobs
         result.notes.extend(sweep.notes)
-        result.errors.extend(sweep.errors)\n
+        result.errors.extend(sweep.errors)

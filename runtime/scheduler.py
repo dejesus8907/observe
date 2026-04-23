@@ -212,4 +212,4 @@ class RuntimeScheduler:
         for _ in range(recovery_result.cancelled_jobs):
             record_recovery_action(queue=config.queue_name or "default", action="cancelled")
         for _ in range(recovery_result.untouched_jobs):
-            record_recovery_action(queue=config.queue_name or "default", action="untouched")\n
+            record_recovery_action(queue=config.queue_name or "default", action="untouched")
