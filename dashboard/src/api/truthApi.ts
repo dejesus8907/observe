@@ -1,9 +1,16 @@
 import type {
+  Alert,
   CorrelationClusterDetail,
   CorrelationClusterSummary,
   EvidenceItem,
+  LogEntry,
+  OverviewSummary,
+  RCAGraph,
   ResolvedAssertion,
+  SLO,
+  ServiceHealth,
   TopologyTruthPayload,
+  TraceSpan,
 } from "../types/truth";
 
 const API_BASE = (import.meta.env.VITE_NETOBSERV_API_BASE_URL ?? "http://localhost:8000/api/streaming").replace(/\/$/, "");
@@ -168,6 +175,8 @@ async function fetchPage<T>(
   };
 }
 
+// ---- Truth / Disputes ----
+
 export async function fetchDisputes(limit = 50): Promise<ResolvedAssertion[]> {
   const payload = await getJson<{ disputes: ResolvedAssertion[] }>(toPath("/disputes", { limit }));
   return payload.disputes;
@@ -201,6 +210,8 @@ export async function fetchSubjectHistory(subjectId: string, subjectType?: strin
   );
 }
 
+// ---- Correlation Clusters / Incidents ----
+
 export async function fetchCorrelationClusters(limit = 50): Promise<CorrelationClusterSummary[]> {
   const payload = await getJson<{ clusters: CorrelationClusterSummary[] }>(toPath("/correlation/clusters", { limit }));
   return payload.clusters;
@@ -214,9 +225,89 @@ export async function fetchCorrelationCluster(clusterId: string): Promise<Correl
   return getJson<CorrelationClusterDetail>(`/correlation/clusters/${encodeURIComponent(clusterId)}`);
 }
 
+// ---- Topology ----
+
 export async function fetchTopologyTruth(limit = 200): Promise<TopologyTruthPayload> {
   return getJson<TopologyTruthPayload>(toPath("/topology/current", { limit }));
 }
+
+// ---- Alerts ----
+
+export async function fetchAlerts(
+  state?: string,
+  severity?: string,
+  service?: string,
+  limit = 100,
+): Promise<Alert[]> {
+  const payload = await getJson<{ alerts: Alert[] }>(
+    toPath("/alerts", { state, severity, service, limit }),
+  );
+  return payload.alerts;
+}
+
+export async function fetchAlertsPage(page = 1, limit = 50): Promise<PaginatedResult<Alert>> {
+  return fetchPage<Alert>("/alerts", "alerts", page, limit);
+}
+
+// ---- SLOs ----
+
+export async function fetchSLOs(service?: string): Promise<SLO[]> {
+  const payload = await getJson<{ slos: SLO[] }>(toPath("/slos", { service }));
+  return payload.slos;
+}
+
+// ---- Services ----
+
+export async function fetchServices(): Promise<ServiceHealth[]> {
+  const payload = await getJson<{ services: ServiceHealth[] }>("/services/health");
+  return payload.services;
+}
+
+// ---- Traces ----
+
+export async function fetchTraces(
+  service?: string,
+  traceId?: string,
+  status?: string,
+  limit = 50,
+): Promise<TraceSpan[]> {
+  const payload = await getJson<{ spans: TraceSpan[] }>(
+    toPath("/traces", { service, trace_id: traceId, status, limit }),
+  );
+  return payload.spans;
+}
+
+// ---- Logs ----
+
+export async function fetchLogs(
+  service?: string,
+  level?: string,
+  query?: string,
+  limit = 100,
+): Promise<LogEntry[]> {
+  const payload = await getJson<{ logs: LogEntry[] }>(
+    toPath("/logs", { service, level, query, limit }),
+  );
+  return payload.logs;
+}
+
+// ---- RCA ----
+
+export async function fetchRCAGraph(clusterId: string): Promise<RCAGraph> {
+  return getJson<RCAGraph>(`/rca/clusters/${encodeURIComponent(clusterId)}`);
+}
+
+export async function fetchRCAGraphByAlert(alertId: string): Promise<RCAGraph> {
+  return getJson<RCAGraph>(`/rca/alerts/${encodeURIComponent(alertId)}`);
+}
+
+// ---- Overview ----
+
+export async function fetchOverviewSummary(): Promise<OverviewSummary> {
+  return getJson<OverviewSummary>("/overview/summary");
+}
+
+// ---- Streaming ----
 
 export function subscribeStreamingEvents(handler: StreamingEventHandler, kinds: string[] = []): () => void {
   const base = API_BASE.replace(/^http/i, "ws");

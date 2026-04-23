@@ -98,3 +98,102 @@ export interface TopologyTruthPayload {
   nodes: TopologyTruthNode[];
   edges: TopologyTruthEdge[];
 }
+
+// ---- Extended types for new pages ----
+
+export interface Alert {
+  alert_id: string;
+  name: string;
+  severity: "critical" | "warning" | "info";
+  state: "firing" | "resolved" | "silenced";
+  service?: string;
+  device_id?: string;
+  cluster_id?: string | null;
+  started_at: string;
+  resolved_at?: string | null;
+  summary?: string;
+  labels?: Record<string, string>;
+}
+
+export interface SLO {
+  slo_id: string;
+  name: string;
+  service: string;
+  objective: number;
+  current_compliance: number;
+  burn_rate_1h?: number;
+  burn_rate_6h?: number;
+  burn_rate_24h?: number;
+  window_days: number;
+  state: "healthy" | "at_risk" | "breached";
+  error_budget_remaining_pct: number;
+}
+
+export interface ServiceHealth {
+  service_id: string;
+  name: string;
+  health: "healthy" | "degraded" | "critical" | "unknown";
+  error_rate?: number;
+  p99_latency_ms?: number;
+  request_rate?: number;
+  active_alerts?: number;
+  active_incidents?: number;
+}
+
+export interface TraceSpan {
+  trace_id: string;
+  span_id: string;
+  parent_span_id?: string | null;
+  service: string;
+  operation: string;
+  start_time: string;
+  duration_ms: number;
+  status: "ok" | "error" | "unset";
+  attributes?: Record<string, unknown>;
+}
+
+export interface LogEntry {
+  log_id: string;
+  timestamp: string;
+  level: "debug" | "info" | "warn" | "error" | "fatal";
+  service: string;
+  message: string;
+  trace_id?: string;
+  span_id?: string;
+  labels?: Record<string, string>;
+}
+
+export interface RCANode {
+  node_id: string;
+  kind: "event" | "assertion" | "service" | "device" | "alert";
+  label: string;
+  confidence: number;
+  disputed: boolean;
+  cluster_id?: string | null;
+  explanation?: string;
+}
+
+export interface RCAEdge {
+  from: string;
+  to: string;
+  relation: string;
+  confidence: number;
+}
+
+export interface RCAGraph {
+  root_id: string;
+  nodes: RCANode[];
+  edges: RCAEdge[];
+  summary?: string;
+}
+
+export interface OverviewSummary {
+  active_alerts_critical: number;
+  active_alerts_warning: number;
+  active_incidents: number;
+  disputed_assertions: number;
+  unhealthy_services: number;
+  slo_at_risk: number;
+  topology_nodes: number;
+  topology_disputed_nodes: number;
+}

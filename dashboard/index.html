@@ -3,9 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NetObserv Truth Operations Dashboard</title>
+    <title>NetObserv — Observability Dashboard</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body, #root {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #0d0f14;
+        color: #e2e8f0;
+        font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: #151820; }
+      ::-webkit-scrollbar-thumb { background: #2a3050; border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: #3a4060; }
+      select option { background: #1c2030; color: #e2e8f0; }
+    </style>
   </head>
-  <body style="margin:0;background:#111;color:#eee;font-family:Arial,sans-serif;">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
